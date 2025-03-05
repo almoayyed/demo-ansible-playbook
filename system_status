@@ -1,0 +1,33 @@
+---
+- name: Gather system status
+  hosts: all
+  gather_facts: no
+  tasks:
+    - name: Get hostname
+      shell: hostname
+      register: hostname_output
+
+    - name: Get current time
+      shell: date
+      register: time_output
+
+    - name: Get formatted disk utilization (Disk name and utilization % only)
+      shell: df -h | awk 'NR>1 {print $1, $5}' | jq -R -s -c 'split("\n") | map(select(. != "")) | map(split(" ")) | map({"disk_name": .[0], "usage_percentage": .[1]})'
+      register: disk_usage_output
+
+    - name: Get CPU usage
+      shell: top -bn1 | grep "Cpu(s)" | awk '{print $2+$4 "%"}'
+      register: cpu_usage_output
+
+    - name: Get formatted memory usage (in JSON format)
+      shell: free -m | awk 'NR==2 {printf "{\"total\": %s, \"used\": %s, \"free\": %s, \"shared\": %s, \"buffers\": %s, \"cached\": %s}\n", $2, $3, $4, $5, $6, $7}'
+      register: memory_usage_output
+
+    - name: Display system status
+      debug:
+        msg:
+          - "Hostname: {{ hostname_output.stdout }}"
+          - "Current Time: {{ time_output.stdout }}"
+          - "Disk Utilization: {{ disk_usage_output.stdout }}"
+          - "CPU Usage: {{ cpu_usage_output.stdout }}"
+          - "Memory Usage: {{ memory_usage_output.stdout }}"
